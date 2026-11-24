@@ -105,18 +105,49 @@ def generate_password(policy):
 
 
 def effective_permissions(position, roles):
-    """Задание 3."""
-    raise NotImplementedError
+    """Задание 3. Отсортированный список прав должности (без повторов)."""
+    perms = set()
+    for role_name in roles["positions"].get(position, []):
+        perms.update(roles["roles"].get(role_name, []))
+    return sorted(perms)
 
 
 def write_role_matrix(roles, path="role_matrix.csv"):
-    """Задание 3."""
-    raise NotImplementedError
+    """Задание 3. CSV-матрица ролей."""
+    all_perms = sorted({p for plist in roles["roles"].values() for p in plist})
+    rows = []
+    for pos in roles["positions"]:
+        pos_perms = set(effective_permissions(pos, roles))
+        row = {"position": pos}
+        for p in all_perms:
+            row[p] = "+" if p in pos_perms else ""
+        rows.append(row)
+
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["position"] + all_perms)
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def create_account(emp, accounts, grants, roles, policy):
-    """Задание 3."""
-    raise NotImplementedError
+    """Задание 3. Создаёт учётную запись сотрудника emp."""
+    existing_logins = {a["login"] for a in accounts}
+    login = make_login(emp["fullname"], existing_logins)
+    password = generate_password(policy)
+
+    accounts.append({
+        "login": login,
+        "emp_id": emp["emp_id"],
+        "created": today().isoformat(),
+        "last_login": "",
+        "disabled_at": "",
+    })
+
+    for perm in effective_permissions(emp["position"], roles):
+        grants.append({"login": login, "permission": perm})
+
+    log_action("create", login, f"{emp['fullname']}, {emp['position']}")
+    return login, password
 
 
 if __name__ == "__main__":
